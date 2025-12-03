@@ -1,3 +1,6 @@
+#github_pat_11BSFTSQY00wdr7hAKxtTO_OH0fvonENczwhyZsfYbO5qo8fvjh3iwAliWyIizeQe#YHJ333LLEhWZenL5z
+
+
 import socket as s
 import pygame
 import threading
@@ -6,8 +9,6 @@ import pickle
 import math as m
 import random as r
 import pygame.freetype
-
-#alex is very cute
 
 win = pygame.display.set_mode((800, 600))
 alpha_win = pygame.Surface((800, 600), pygame.SRCALPHA)
@@ -40,7 +41,7 @@ color = RED
 
 clock = pygame.time.Clock()
 PORT = 8000
-# HOST = '192.168.68.71'
+# HOST = '192.168.68.69'
 HOST = '10.218.144.53'
 
 username_input = True
@@ -65,21 +66,34 @@ class Block:
         self.width = width
         self.height = height
         self.rect = pygame.Rect(x, y, width, height)
-        self.top = range(self.x, self.x + self.width)
-        self.left = range(self.y, self.y + self.height)
+        self.top = y
+        self.right = x + width
+        self.bottom = y + height
+        self.left = x
+
+    def update(self):
+        self.top = self.y
+        self.right = self.x + self.width
+        self.bottom = self.y + self.height
+        self.left = self.x
+
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, x, y, w, h, c, hp, id):
+    def __init__(self, x, y, width, height, c, hp, id):
         pygame.sprite.Sprite.__init__(self)
         self.x = x
         self.y = y
-        self.w = w
-        self.h = h
+        self.width = width
+        self.height = height
         self.c = c
+        self.top = y
+        self.right = x + width
+        self.bottom = y + height
+        self.left = x
         self.hp = hp
         self.projectiles = []
         self.id = id
-        self.rect = pygame.Rect(x, y, w, h)
+        self.rect = pygame.Rect(x, y, width, height)
         self.canShoot = True
         self.jumping = False
         self.dmgd = False
@@ -89,10 +103,16 @@ class Player(pygame.sprite.Sprite):
         self.msg_index = 0
 
     def move_x(self, speed):
-        self.x += speed
+        for i in range(speed):
+            self.x += 1
+
+    def move_neg_x(self, speed):
+        for i in range(speed):
+            self.x -= 1
 
     def gravity(self, gravity):
-        self.y += gravity
+        for i in range(gravity):
+            self.y += 1
 
     def take_dmg(self):
         self.c = color
@@ -110,14 +130,18 @@ class Player(pygame.sprite.Sprite):
             player.y -= speed
             if speed < max_speed:
                 speed += speed
-            t.sleep(1)
-        # t.sleep(1)
         self.jumping = False
 
     def immunity(self):
         self.immune = True
         t.sleep(.4)
         self.immune = False
+
+    def update(self):
+        self.top = self.y
+        self.right = self.x + self.width
+        self.bottom = self.y + self.height
+        self.left = self.x
 
 class Projectile(pygame.sprite.Sprite):
     def __init__(self, x, y, dmg, speed_x, speed_y, owner):
@@ -128,7 +152,7 @@ class Projectile(pygame.sprite.Sprite):
         self.speed_x = speed_x
         self.speed_y = speed_y
         self.owner = owner
-        self.center = (self.x, self.y)
+        self.center = (x, y)
         self.rect = pygame.Rect(x, y, 10, 10)
 
     def move(self):
@@ -148,6 +172,7 @@ def respawn():
 
     player.hp = 100
     player.x, player.y = 400, 500
+
 
 font = pygame.font.Font(None, 60)
 
@@ -187,7 +212,8 @@ def save_data(data):
     with open('data.txt', 'wb') as file:
         pickle.dump(data, file)
 
-maps = [[(219, 208, 82), Block((156, 118, 43), 0, 560, 800, 40)]]
+maps = [[(219, 208, 82), Block((156, 118, 43), 0, 560, 400, 40), Block((0, 0, 0), 600, 500, 20, 100)]]
+# Block((0, 0, 0), 600, 540, 20, 100)
 
 map = Map((255, 255, 255), [])
 
@@ -214,6 +240,7 @@ stats_menu.fill((0, 0, 0, 120))
 
 player = Player(100, 300, 30, 30, color, 100, r.randint(1, 100000))
 client = s.socket(s.AF_INET, s.SOCK_STREAM)
+
 
 while True:
     try:
@@ -243,15 +270,34 @@ while running:
 
     win.blit(alpha_win, (0, 0))
 
+    keys = pygame.key.get_pressed()
+
+    player.gravity(10)
+    player.update()
+
     for block in map.blocks:
+        if player.bottom >= block.top and player.top <= block.bottom-block.height/2 and player.left < block.right and player.right > block.left:
+            player.y = block.top - player.height
+        if player.bottom >= block.top and player.top <= block.bottom+block.height/2 and player.left < block.right and player.right > block.left:
+            pass
+        if player.bottom >= block.top and player.top <= block.bottom and player.right > block.left and player.left < block.right:
+            player.x = block.left-player.width
+        # if  player.bottom >= block.top and player.top <= block.bottom and player.right < block.left:
+        #     player.x = block.left - player.width
+
+        block.update()
         pygame.draw.rect(win, block.color, block.rect)
-        if not jumping and not player.rect.collidepoint(block.x, block.y):
-            player.gravity(9.8)
+        if player.hp > 0:
+
+            if keys[pygame.K_d]:
+                player.move_x(3)
+            if keys[pygame.K_a]:
+                player.move_neg_x(3)
 
     for projectile in player.projectiles:
         projectile.move()
 
-    player.rect = pygame.Rect(player.x, player.y, player.w, player.h)
+    player.rect = pygame.Rect(player.x, player.y, player.width, player.height)
     pygame.draw.rect(stats_menu, (255, 0, 0, 120), (100, 100, 50, 50))
 
     for p in players:
@@ -263,7 +309,7 @@ while running:
             try:
                 if not username_input:
                     username(p.user, 30, BLACK, (p.x + 15 - username_w/2, p.y - 40))
-                pygame.draw.rect(win, p.c, (p.x, p.y, p.w, p.h))
+                pygame.draw.rect(win, p.c, p.rect)
                 pygame.draw.rect(win, (0, 0, 0), (p.x - 10, p.y - 20, 50, 10))
                 pygame.draw.rect(win, (200, 0, 0), (p.x - 7, p.y - 17, 44 * p.hp / 100, 4))
             except:
@@ -314,14 +360,8 @@ while running:
     if player.y < 0:
         player.y = 0
 
-    keys = pygame.key.get_pressed()
     if player.hp > 0:
         respawning = False
-        if not input and not username_input:
-            if keys[pygame.K_a]:
-                player.move_x(-3)
-            if keys[pygame.K_d]:
-                player.move_x(3)
     else:
         deaths += 1
         player.x, player.y = -40, 500
@@ -401,3 +441,5 @@ while running:
     clock.tick(FPS)
 
 pygame.quit()
+
+
