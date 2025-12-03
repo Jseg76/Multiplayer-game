@@ -7,6 +7,8 @@ import math as m
 import random as r
 import pygame.freetype
 
+#alex is very cute
+
 win = pygame.display.set_mode((800, 600))
 alpha_win = pygame.Surface((800, 600), pygame.SRCALPHA)
 
