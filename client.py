@@ -1,6 +1,5 @@
 #github_pat_11BSFTSQY00wdr7hAKxtTO_OH0fvonENczwhyZsfYbO5qo8fvjh3iwAliWyIizeQe#YHJ333LLEhWZenL5z
 
-
 import socket as s
 import pygame
 import threading
@@ -16,6 +15,8 @@ alpha_win = pygame.Surface((800, 600), pygame.SRCALPHA)
 pygame.display.set_caption('Client')
 
 pygame.init()
+
+vector = pygame.math.Vector2
 
 running = True
 FPS = 60
@@ -41,8 +42,8 @@ color = RED
 
 clock = pygame.time.Clock()
 PORT = 8000
-# HOST = '192.168.68.69'
-HOST = '10.218.144.53'
+HOST = s.gethostbyname(s.gethostname())
+# HOST = '10.218.144.53'
 
 username_input = True
 input = False
@@ -52,6 +53,8 @@ total_messages = [[],[],[],[],[],[],[],[],[],[]]
 all_messages = ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',]
 message_number = 0
 msg_len = -1
+
+# vector = pygame.math.Vector2
 
 class Map:
     def __init__(self, bg, blocks):
@@ -70,6 +73,7 @@ class Block:
         self.right = x + width
         self.bottom = y + height
         self.left = x
+
 
     def update(self):
         self.top = self.y
@@ -101,18 +105,63 @@ class Player(pygame.sprite.Sprite):
         self.user = ''
         self.messages = []
         self.msg_index = 0
+        self.pos = vector(x, y)
+        self.vel = vector(0, 0)
+        self.accel = vector(0, 0)
+        self.friction = vector(.1, .1)
+        self.lhit = pygame.Rect(x-1, y, width+1, height)
+        self.rhit = pygame.Rect(x+1, y, width+1, height)
+        self.thit = pygame.Rect(x, y-1, width, height+1)
+        self.bhit = pygame.Rect(x, y+1, width, height+1)
 
-    def move_x(self, speed):
-        for i in range(speed):
-            self.x += 1
+    def move(self, block, speed, gravity):
+        self.accel = vector(0, 0)
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_d]:
+            # if not block.rect.collidepoint(self.x+self.width, self.y) and not block.rect.collidepoint(self.x+self.width, self.y+self.height):
+            self.accel.x = speed
 
-    def move_neg_x(self, speed):
-        for i in range(speed):
-            self.x -= 1
+        if keys[pygame.K_a]:
+            # if not block.rect.collidepoint(self.x, self.y) and not block.rect.collidepoint(self.x, self.y+self.height):
+            self.accel.x = speed * -1
 
-    def gravity(self, gravity):
-        for i in range(gravity):
-            self.y += 1
+        if keys[pygame.K_w]:
+            self.accel.y = -speed
+        else:
+            self.accel.y = gravity
+
+        # if self.lhit.colliderect(block.rect):
+        #     self.x = block.left - self.width
+        # elif self.rhit.colliderect(block.rect):
+        #     self.x = block.right
+        if self.bhit.colliderect(block.rect):
+            self.y = block.top - self.height
+        elif self.thit.colliderect(block.rect):
+            self.y = block.bottom
+
+
+            # if self.bottom >= block.top:
+            #     self.vel.y *= -1
+            #     self.accel.y *= -1
+            # elif self.top <= block.bottom:
+            #     self.vel.y *= -1
+            #     self.accel.y *= -1
+            # elif self.left <= block.right:
+            #     self.vel.x = 0
+            #     self.accel.x = 0
+            # elif self.right >= block.left:
+            #     self.vel.x = 0
+            #     self.accel.x = 0
+
+        self.accel.x -= self.vel.x * self.friction.x
+        self.accel.y -= self.vel.y * self.friction.y
+        self.vel += self.accel
+
+        for i in range(10):
+            self.y += (self.vel.y + .5 * self.accel.y)/10
+            self.x += (self.vel.x + .5 * self.accel.x)/10
+
+
 
     def take_dmg(self):
         self.c = color
@@ -124,24 +173,24 @@ class Player(pygame.sprite.Sprite):
         t.sleep(.3)
         self.canShoot = True
 
-    def jump(self, speed, time):
-        self.jumping = True
-        for i in range(time):
-            player.y -= speed
-            if speed < max_speed:
-                speed += speed
-        self.jumping = False
-
     def immunity(self):
         self.immune = True
         t.sleep(.4)
         self.immune = False
 
     def update(self):
+        for block in map.blocks:
+            if not input and not username_input:
+                player.move(block, .15, .4)
+        self.lhit = pygame.Rect(self.x - 1, self.y, self.width + 1, self.height)
+        self.rhit = pygame.Rect(self.x + 1, self.y, self.width + 1, self.height)
+        self.thit = pygame.Rect(self.x, self.y - 1, self.width, self.height + 1)
+        self.bhit = pygame.Rect(self.x, self.y + 1, self.width, self.height + 1)
         self.top = self.y
         self.right = self.x + self.width
         self.bottom = self.y + self.height
         self.left = self.x
+
 
 class Projectile(pygame.sprite.Sprite):
     def __init__(self, x, y, dmg, speed_x, speed_y, owner):
@@ -186,7 +235,6 @@ def text_input(text, maxLen, size, color, dest):
     inputText_h = inputText.get_height()
     user_max_len = maxLen
 
-
 def draw_text(text, size, color, dest, alpha):
     global text_w, text_h
     font = pygame.font.Font(None, size)
@@ -212,7 +260,7 @@ def save_data(data):
     with open('data.txt', 'wb') as file:
         pickle.dump(data, file)
 
-maps = [[(219, 208, 82), Block((156, 118, 43), 0, 560, 400, 40), Block((0, 0, 0), 600, 500, 20, 100)]]
+maps = [[(219, 208, 82), Block((156, 118, 43), 0, 560, 800, 50), Block((0, 0, 0), 600, 550, 70, 50)]]
 # Block((0, 0, 0), 600, 540, 20, 100)
 
 map = Map((255, 255, 255), [])
@@ -225,7 +273,6 @@ for block in chosen_map:
     if block != chosen_map[0]:
         map.blocks.append(block)
 
-print(map.blocks)
 
 username('', 30, (255, 255, 255), (0, 0))
 
@@ -241,6 +288,7 @@ stats_menu.fill((0, 0, 0, 120))
 player = Player(100, 300, 30, 30, color, 100, r.randint(1, 100000))
 client = s.socket(s.AF_INET, s.SOCK_STREAM)
 
+keys = pygame.key.get_pressed()
 
 while True:
     try:
@@ -270,29 +318,12 @@ while running:
 
     win.blit(alpha_win, (0, 0))
 
-    keys = pygame.key.get_pressed()
-
-    player.gravity(10)
-    player.update()
-
     for block in map.blocks:
-        if player.bottom >= block.top and player.top <= block.bottom-block.height/2 and player.left < block.right and player.right > block.left:
-            player.y = block.top - player.height
-        if player.bottom >= block.top and player.top <= block.bottom+block.height/2 and player.left < block.right and player.right > block.left:
-            pass
-        if player.bottom >= block.top and player.top <= block.bottom and player.right > block.left and player.left < block.right:
-            player.x = block.left-player.width
-        # if  player.bottom >= block.top and player.top <= block.bottom and player.right < block.left:
-        #     player.x = block.left - player.width
 
         block.update()
         pygame.draw.rect(win, block.color, block.rect)
         if player.hp > 0:
-
-            if keys[pygame.K_d]:
-                player.move_x(3)
-            if keys[pygame.K_a]:
-                player.move_neg_x(3)
+            player.update()
 
     for projectile in player.projectiles:
         projectile.move()
@@ -337,25 +368,25 @@ while running:
             if not -300 <= pro.x <= 1100 and 900 >= pro.y >= -300:
                 player.projectiles.pop(player.projectiles.index(pro))
 
-        for message in p.messages:
-            total_messages[message_number] = p.messages
-            for msgs in total_messages:
-                if not len(msgs) == 0:
-                    for msg in msgs:
-                        if msg.replace(' ', '') != '':
-                            all_messages[sum(len(msgs) for msgs in total_messages)] = msg
-                            print(all_messages)
-
-    for Msg in all_messages:
-        if Msg.replace(' ', '') != '':
-            draw_text(Msg, 50, (0, 0, 0), (3, 570 - all_messages.index(Msg)*35), 200)
-            text_bg(max(text_w + 5, 200), 35, (0, 0, 0, 120), (3, 570 - all_messages.index(Msg)*35))
+    #     for message in p.messages:
+    #         total_messages[message_number] = p.messages
+    #         for msgs in total_messages:
+    #             if not len(msgs) == 0:
+    #                 for msg in msgs:
+    #                     if msg.replace(' ', '') != '':
+    #                         all_messages[sum(len(msgs) for msgs in total_messages)] = msg
+    #                         print(all_messages)
+    #
+    # for Msg in all_messages:
+    #     if Msg.replace(' ', '') != '':
+    #         draw_text(Msg, 50, (0, 0, 0), (3, 570 - all_messages.index(Msg)*35), 200)
+    #         text_bg(max(text_w + 5, 200), 35, (0, 0, 0, 120), (3, 570 - all_messages.index(Msg)*35))
 
     if player.x > 770:
         player.x = 770
     if player.x < 0:
         player.x = 0
-    if player.y > 560:
+    if player.y > 570:
         player.y = 560
     if player.y < 0:
         player.y = 0
@@ -370,13 +401,6 @@ while running:
             threading.Thread(target=respawn).start()
             respawning = True
         win.blit(respawn_text, (150, 100))
-
-    if not input and not username_input:
-        if keys[pygame.K_w] or keys[pygame.K_SPACE] and player.hp > 0:
-            # if 569 <= player.y <= 570:
-            #     player.jumping = True
-            if not player.jumping:
-                threading.Thread(target=player.jump(30, 1)).start()
 
     if keys[pygame.K_TAB] and not username_input:
         win.blit(stats_menu, (150, 0))
@@ -441,5 +465,8 @@ while running:
     clock.tick(FPS)
 
 pygame.quit()
+
+
+
 
 
